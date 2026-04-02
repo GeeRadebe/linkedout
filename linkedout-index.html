@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>LinkedOut — T⁴Tech Solutions</title>
+<meta name="description" content="Graduate Intelligence Platform. Built in JHB for every grad the system forgot."/>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@300;400;700&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet"/>
+<style>
+@font-face {
+  font-family: 'OpenDyslexic';
+  src: url('https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/open-dyslexic-regular.otf') format('opentype');
+  font-weight: 400;
+}
+@font-face {
+  font-family: 'OpenDyslexic';
+  src: url('https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/open-dyslexic-bold.otf') format('opentype');
+  font-weight: 700;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{height:100vh;overflow:hidden}
+::-webkit-scrollbar{width:3px}
+::-webkit-scrollbar-thumb{background:var(--border)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+@keyframes slideIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes ticker{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+@keyframes popIn{from{opacity:0;transform:scale(0.85)}to{opacity:1;transform:scale(1)}}
+input,textarea,select{font-family:inherit}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+// ── THEMES ───────────────────────────────────────────────────────────────────
+const THEMES = {
+  dark: {
+    id:"dark", label:"Dark", icon:"◑",
+    vars:{
+      "--bg":"#0c0c0c","--surface":"#141414","--surface2":"#1a1a1a","--border":"#252525",
+      "--red":"#d63031","--amber":"#f59e0b","--green":"#10b981",
+      "--text":"#e8e0d0","--muted":"#5a5550",
+      "--mono":"'IBM Plex Mono',monospace","--display":"'Bebas Neue',sans-serif",
+      "--serif":"'DM Serif Display',Georgia,serif","--body":"'IBM Plex Mono',monospace",
+      "--ticker-bg":"#d63031","--lh":"1.6","--ls":"0em",
+    },
+  },
+  light: {
+    id:"light", label:"Light", icon:"○",
+    vars:{
+      "--bg":"#f4f0e8","--surface":"#fffef9","--surface2":"#edeae0","--border":"#d8d2c4",
+      "--red":"#c0392b","--amber":"#d97706","--green":"#059669",
+      "--text":"#1a1612","--muted":"#7a7265",
+      "--mono":"'IBM Plex Mono',monospace","--display":"'Bebas Neue',sans-serif",
+      "--serif":"'DM Serif Display',Georgia,serif","--body":"'IBM Plex Mono',monospace",
+      "--ticker-bg":"#c0392b","--lh":"1.6","--ls":"0em",
+    },
+  },
+  dyslexia: {
+    id:"dyslexia", label:"Dyslexia", icon:"◎",
+    note:"accessible",
+    vars:{
+      "--bg":"#fdf6e3","--surface":"#fffbf0","--surface2":"#f5edcc","--border":"#d4c9a0",
+      "--red":"#b03020","--amber":"#c67c00","--green":"#1a7a4a",
+      "--text":"#1a1200","--muted":"#6b5e3a",
+      "--mono":"'OpenDyslexic','Comic Sans MS',sans-serif",
+      "--display":"'OpenDyslexic','Comic Sans MS',sans-serif",
+      "--serif":"'OpenDyslexic','Comic Sans MS',sans-serif",
+      "--body":"'OpenDyslexic','Comic Sans MS',sans-serif",
+      "--ticker-bg":"#b03020","--lh":"1.95","--ls":"0.04em",
+    },
+  },
+};
+
+function applyTheme(t) {
+  const r = document.documentElement;
+  Object.entries(t.vars).forEach(([k,v])=>r.style.setProperty(k,v));
+  document.body.style.cssText = `background:${t.vars["--bg"]};color:${t.vars["--text"]};font-family:${t.vars["--body"]};line-height:${t.vars["--lh"]};letter-spacing:${t.vars["--ls"]};height:100vh;overflow:hidden`;
+}
+
+// ── DATA ─────────────────────────────────────────────────────────────────────
+const NAV = [
+  {id:"dashboard",icon:"◈",label:"Dashboard"},
+  {id:"jobs",icon:"⊞",label:"Live Jobs"},
+  {id:"news",icon:"◉",label:"Intel"},
+  {id:"bots",icon:"⬡",label:"AI Bots"},
+  {id:"tracker",icon:"◫",label:"Tracker"},
+];
+const TICKER_ITEMS = [
+  "LINKEDOUT v2","ZA JOBS LIVE","AI BOTS ONLINE","NO AGE LIMIT",
+  "NSFAS GRADS WELCOME","BUILT IN JHB","T⁴TECH SOLUTIONS","LOCKED OUT? BUILD YOUR OWN DOOR",
+];
+const STATS = [
+  {label:"Jobs Tracked",value:"2,841",delta:"+47 today",color:"var(--green)"},
+  {label:"Applications",value:"128",delta:"+3 this week",color:"var(--amber)"},
+  {label:"Responses",value:"19",delta:"14.8% rate",color:"var(--red)"},
+  {label:"Interviews",value:"4",delta:"Active",color:"var(--green)"},
+];
+const FALLBACK_JOBS = [
+  {id:1,title:"Customer Service Agent",company:"Capitec Bank",location:"Gauteng",type:"Full-time",tags:["Customer Care","Banking"],url:"https://capitecbank.co.za/careers",posted:"2026-04-02",salary:"R8k–R14k"},
+  {id:2,title:"Sales Representative",company:"Nashua ZA",location:"Johannesburg",type:"Full-time",tags:["B2B Sales","Targets"],url:"https://nashua.co.za",posted:"2026-04-02",salary:"R12k+comm"},
+  {id:3,title:"HR Administrator",company:"Shoprite Group",location:"Gauteng",type:"Full-time",tags:["HR","Payroll","SAGE"],url:"https://shoprite.co.za/careers",posted:"2026-04-01",salary:"R15k–R22k"},
+  {id:4,title:"Logistics Coordinator",company:"DHL South Africa",location:"Kempton Park",type:"Full-time",tags:["Logistics","Supply Chain"],url:"https://dhl.com/za",posted:"2026-04-01",salary:"R18k–R28k"},
+  {id:5,title:"Bookkeeper",company:"TFG Foschini Group",location:"Johannesburg",type:"Full-time",tags:["Accounting","Xero","Excel"],url:"https://tfg.co.za/careers",posted:"2026-03-31",salary:"R16k–R24k"},
+  {id:6,title:"Marketing Coordinator",company:"MTN South Africa",location:"Johannesburg",type:"Hybrid",tags:["Digital Marketing","Social Media"],url:"https://mtn.co.za/careers",posted:"2026-03-31",salary:"R20k–R32k"},
+  {id:7,title:"Warehouse Supervisor",company:"Bidvest Logistics",location:"Midrand",type:"Full-time",tags:["Warehouse","Stock Control"],url:"https://bidvest.co.za",posted:"2026-03-30",salary:"R18k–R26k"},
+  {id:8,title:"Project Administrator",company:"Eskom",location:"Sunninghill",type:"Full-time",tags:["MS Project","Admin","Reporting"],url:"https://eskom.co.za/careers",posted:"2026-03-30",salary:"R22k–R35k"},
+  {id:9,title:"Data Analyst",company:"Discovery",location:"Sandton",type:"Hybrid",tags:["SQL","Excel","Reporting"],url:"https://discovery.co.za/careers",posted:"2026-03-29",salary:"R30k–R45k"},
+  {id:10,title:"Power Platform Developer",company:"Accenture ZA",location:"Johannesburg",type:"Full-time",tags:["Power Apps","Power Automate"],url:"https://careers.accenture.com",posted:"2026-03-29",salary:"R40k–R65k"},
+  {id:11,title:"Store Manager",company:"Woolworths SA",location:"Gauteng",type:"Full-time",tags:["Retail","Management","Stock"],url:"https://woolworths.co.za/careers",posted:"2026-03-28",salary:"R25k–R40k"},
+  {id:12,title:"Graduate Trainee",company:"Anglo American",location:"Johannesburg",type:"Full-time",tags:["Mining","Graduate","Training"],url:"https://angloamerican.com/careers",posted:"2026-03-28",salary:"R20k–R30k"},
+];
+const FALLBACK_NEWS = [
+  {title:"SA unemployment holds at 32.1% — graduates hardest hit",desc:"Stats SA quarterly labour survey reveals persistent structural unemployment among degree-holders in major metros.",url:"#",date:"2026-04-01",source:"Stats SA"},
+  {title:"SASSETA bursaries open for cybersecurity Honours",desc:"Applications for 2026 SASSETA-funded cybersecurity qualifications now open. Deadline 30 April 2026.",url:"#",date:"2026-03-30",source:"SASSETA"},
+  {title:"Power Platform adoption surges across African enterprises",desc:"Microsoft reports 340% YoY growth in Power Platform deployments across sub-Saharan Africa.",url:"#",date:"2026-03-28",source:"IT Web ZA"},
+  {title:"YES Programme 2026 intake opens",desc:"Youth Employment Service opens applications for 12-month paid work experiences.",url:"https://yes4youth.co.za",date:"2026-03-25",source:"YES Programme"},
+  {title:"Remote work growing for ZA tech graduates",desc:"Global companies increasingly hiring South African talent in Power Platform, cloud, and cybersecurity.",url:"#",date:"2026-03-22",source:"Offerzen Report"},
+  {title:"NSFAS reform: what it means for 2026 graduates",desc:"New NSFAS policy shifts may affect post-graduation support. Graduates urged to check status before June.",url:"#",date:"2026-03-18",source:"Daily Maverick"},
+];
+const BOT_CONFIG = {
+  resume:{label:"Resume Bot",icon:"◈",color:"var(--amber)",
+    system:"You are a South African graduate career coach specialising in CV optimisation for the ZA job market. Help unemployed graduates craft ATS-beating CVs. Be specific, concise, and practical. Understand NSFAS, learnerships, SASSETA, YES Programme, and Power Platform consulting context.",
+    placeholder:"Paste your CV or describe your background. I'll optimise it for ZA jobs…"},
+  jobmatch:{label:"Job Match Bot",icon:"⊞",color:"var(--green)",
+    system:"You are a South African job matching specialist. Given the user's skills and background, recommend specific job titles, companies actively hiring in South Africa, and platforms to use (Remotive, Offerzen, LinkedIn, Careers24, PNet, SASSETA learnerships, YES Programme). Be specific and immediately actionable.",
+    placeholder:"Tell me your skills and qualifications. I'll match you to specific ZA roles…"},
+  market:{label:"Market Intel",icon:"◉",color:"var(--red)",
+    system:"You are a market intelligence analyst focused on South African employment trends, tech industry dynamics, salary benchmarks, and graduate opportunity analysis. Cover Power Platform, cybersecurity, fintech, and the broader African tech ecosystem.",
+    placeholder:"Ask about salary benchmarks, hiring trends, in-demand skills, or sector forecasts…"},
+};
+const STATUS_COLORS = {Applied:"var(--amber)",Interview:"var(--green)",Rejected:"var(--red)",Offer:"#06b6d4",Ghosted:"var(--muted)"};
+
+// ── API ──────────────────────────────────────────────────────────────────────
+async function callClaude(system,message,onResult){
+  try{
+    const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,system,messages:[{role:"user",content:message}]})});
+    const data=await res.json();
+    onResult((data.content||[]).map(b=>b.text||"").join("")||"No response received.");
+  }catch{onResult("⚠ Connection error. Check your network.");}
+}
+async function fetchJobs(){
+  try{
+    const categories=["software-dev","customer-service","sales","marketing","business","finance","human-resources","project-management","writing","data"];
+    const cat=categories[Math.floor(Date.now()/3600000)%categories.length];
+    const res=await fetch(`https://remotive.com/api/remote-jobs?limit=30&category=${cat}`);
+    const data=await res.json();
+    return(data.jobs||[]).slice(0,20).map(j=>({id:j.id,title:j.title,company:j.company_name,
+      location:j.candidate_required_location||"Remote",type:j.job_type||"Full-time",
+      tags:(j.tags||[]).slice(0,3),url:j.url,posted:new Date(j.publication_date).toLocaleDateString("en-ZA"),salary:j.salary||null}));
+  }catch{return FALLBACK_JOBS;}
+}
+async function fetchNews(){
+  try{
+    const res=await fetch("https://api.rss2json.com/v1/api.json?rss_url=https://feeds.bbci.co.uk/news/business/rss.xml&count=12");
+    const data=await res.json();
+    return(data.items||[]).map(n=>({title:n.title,desc:(n.description||"").replace(/<[^>]+>/g,"").slice(0,160)+"…",
+      url:n.link,date:new Date(n.pubDate).toLocaleDateString("en-ZA"),source:"BBC Business"}));
+  }catch{return FALLBACK_NEWS;}
+}
+
+// ── ATOMS ────────────────────────────────────────────────────────────────────
+const Dot=({c="var(--green)"})=><span style={{display:"inline-block",width:6,height:6,borderRadius:"50%",background:c,animation:"pulse 2s infinite",marginRight:6,flexShrink:0}}/>;
+const Spin=()=><div style={{width:12,height:12,border:"2px solid var(--red)",borderTopColor:"transparent",borderRadius:"50%",animation:"spin 0.7s linear infinite"}}/>;
+const Tag=({children,c="var(--muted)"})=><span style={{fontSize:9,letterSpacing:"0.1em",padding:"2px 8px",border:`1px solid ${c}`,color:c,textTransform:"uppercase",fontFamily:"var(--mono)"}}>{children}</span>;
+const Head=({label,live})=>(
+  <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:20,borderBottom:"1px solid var(--border)",paddingBottom:12}}>
+    {live&&<Dot/>}
+    <span style={{fontFamily:"var(--display)",fontSize:26,letterSpacing:"0.04em",textTransform:"uppercase",color:"var(--text)"}}>{label}</span>
+    {live&&<span style={{fontSize:9,color:"var(--green)",letterSpacing:"0.2em",marginLeft:"auto",fontFamily:"var(--mono)"}}>LIVE</span>}
+  </div>
+);
+
+// ── THEME TOGGLE ─────────────────────────────────────────────────────────────
+const ThemeToggle=({current,onChange})=>{
+  const [open,setOpen]=useState(false);
+  return(
+    <div style={{position:"fixed",bottom:24,right:24,zIndex:1000,display:"flex",flexDirection:"column",alignItems:"flex-end",gap:8}}>
+      {open&&(
+        <div style={{background:"var(--surface)",border:"1px solid var(--border)",padding:8,
+          boxShadow:"0 8px 32px rgba(0,0,0,0.35)",animation:"popIn 0.18s ease",display:"flex",flexDirection:"column",gap:4}}>
+          {Object.values(THEMES).map(t=>(
+            <button key={t.id} onClick={()=>{onChange(t.id);setOpen(false);}}
+              style={{display:"flex",alignItems:"center",gap:10,padding:"9px 16px",
+                background:current===t.id?"var(--red)":"transparent",
+                border:`1px solid ${current===t.id?"var(--red)":"var(--border)"}`,
+                color:current===t.id?"#fff":"var(--muted)",
+                fontFamily:"var(--body)",fontSize:11,letterSpacing:"0.1em",
+                cursor:"pointer",textAlign:"left",transition:"all 0.15s",whiteSpace:"nowrap"}}>
+              <span style={{fontSize:15}}>{t.icon}</span>
+              <span style={{textTransform:"uppercase"}}>{t.label}</span>
+              {t.note&&<span style={{fontSize:8,opacity:.55,marginLeft:4,fontFamily:"var(--mono)"}}>({t.note})</span>}
+              {current===t.id&&<span style={{marginLeft:"auto",fontSize:11}}>✓</span>}
+            </button>
+          ))}
+        </div>
+      )}
+      <button onClick={()=>setOpen(o=>!o)} aria-label="Change display theme" title="Change theme"
+        style={{width:46,height:46,borderRadius:"50%",background:"var(--red)",border:"2px solid var(--border)",
+          color:"#fff",fontSize:20,cursor:"pointer",boxShadow:"0 4px 20px rgba(0,0,0,0.4)",
+          display:"flex",alignItems:"center",justifyContent:"center",transition:"transform 0.2s",fontFamily:"var(--mono)"}}
+        onMouseEnter={e=>e.currentTarget.style.transform="scale(1.12)"}
+        onMouseLeave={e=>e.currentTarget.style.transform="scale(1)"}>
+        {THEMES[current].icon}
+      </button>
+    </div>
+  );
+};
+
+// ── TICKER ───────────────────────────────────────────────────────────────────
+const Ticker=()=>{
+  const items=[...TICKER_ITEMS,...TICKER_ITEMS];
+  return(
+    <div style={{background:"var(--ticker-bg)",height:30,overflow:"hidden",display:"flex",alignItems:"center",borderBottom:"1px solid rgba(0,0,0,0.2)",flexShrink:0}}>
+      <div style={{display:"flex",animation:"ticker 30s linear infinite",whiteSpace:"nowrap"}}>
+        {items.map((t,i)=><span key={i} style={{fontFamily:"var(--mono)",fontSize:9,letterSpacing:"0.2em",color:"#fff",padding:"0 28px",textTransform:"uppercase"}}>{t} <span style={{opacity:.4}}>◆</span></span>)}
+      </div>
+    </div>
+  );
+};
+
+// ── DASHBOARD ────────────────────────────────────────────────────────────────
+const Dashboard=({jobs,news})=>{
+  const now=new Date().toLocaleString("en-ZA",{dateStyle:"medium",timeStyle:"short"});
+  return(
+    <div style={{animation:"slideIn 0.3s ease"}}>
+      <div style={{marginBottom:24}}>
+        <div style={{fontFamily:"var(--display)",fontSize:"clamp(36px,8vw,64px)",lineHeight:.9,marginBottom:6,color:"var(--text)"}}>
+          LINKED<span style={{color:"var(--red)"}}>OUT</span>
+        </div>
+        <div style={{fontSize:9,color:"var(--muted)",letterSpacing:"0.2em",fontFamily:"var(--mono)"}}>GRADUATE INTELLIGENCE PLATFORM · {now}</div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))",gap:2,marginBottom:20}}>
+        {STATS.map(s=>(
+          <div key={s.label} style={{background:"var(--surface)",border:"1px solid var(--border)",padding:"16px 18px"}}>
+            <div style={{fontSize:9,letterSpacing:"0.15em",color:"var(--muted)",textTransform:"uppercase",marginBottom:6,fontFamily:"var(--mono)"}}>{s.label}</div>
+            <div style={{fontFamily:"var(--display)",fontSize:40,lineHeight:1,color:s.color,marginBottom:2}}>{s.value}</div>
+            <div style={{fontSize:9,color:"var(--muted)",fontFamily:"var(--mono)"}}>{s.delta}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:2,marginBottom:16}}>
+        <div style={{background:"var(--surface)",border:"1px solid var(--border)",padding:16}}>
+          <Head label="Jobs" live/>
+          {jobs.slice(0,4).map(j=>(
+            <a key={j.id} href={j.url} target="_blank" rel="noreferrer"
+              style={{display:"block",borderBottom:"1px solid var(--border)",padding:"8px 0",textDecoration:"none",color:"var(--text)"}}>
+              <div style={{fontSize:11,fontWeight:700,marginBottom:2,fontFamily:"var(--body)",lineHeight:"var(--lh)"}}>{j.title}</div>
+              <div style={{fontSize:9,color:"var(--muted)",fontFamily:"var(--mono)"}}>{j.company}</div>
+            </a>
+          ))}
+        </div>
+        <div style={{background:"var(--surface)",border:"1px solid var(--border)",padding:16}}>
+          <Head label="Intel" live/>
+          {news.slice(0,4).map((n,i)=>(
+            <a key={i} href={n.url} target="_blank" rel="noreferrer"
+              style={{display:"block",borderBottom:"1px solid var(--border)",padding:"8px 0",textDecoration:"none",color:"var(--text)"}}>
+              <div style={{fontSize:11,fontWeight:700,marginBottom:2,lineHeight:"var(--lh)",fontFamily:"var(--body)"}}>{n.title}</div>
+              <div style={{fontSize:9,color:"var(--muted)",fontFamily:"var(--mono)"}}>{n.source}</div>
+            </a>
+          ))}
+        </div>
+      </div>
+      <div style={{background:"var(--red)",padding:"16px 20px",display:"flex",alignItems:"center",gap:12}}>
+        <span style={{fontFamily:"var(--display)",fontSize:20,color:"#fff",letterSpacing:"0.04em"}}>LOCKED OUT IS NOT LEFT BEHIND.</span>
+        <span style={{fontSize:9,color:"rgba(255,255,255,0.55)",marginLeft:"auto",letterSpacing:"0.12em",fontFamily:"var(--mono)"}}>T⁴TECH · JHB · 2026</span>
+      </div>
+    </div>
+  );
+};
+
+// ── JOBS ─────────────────────────────────────────────────────────────────────
+const Jobs=({jobs,loading})=>{
+  const [q,setQ]=useState("");
+  const [saved,setSaved]=useState([]);
+  const filtered=jobs.filter(j=>!q||j.title.toLowerCase().includes(q.toLowerCase())||j.company.toLowerCase().includes(q.toLowerCase())||j.tags.some(t=>t.toLowerCase().includes(q.toLowerCase())));
+  return(
+    <div style={{animation:"slideIn 0.3s ease"}}>
+      <Head label="Live Job Feed" live/>
+      <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:14}}>
+        <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Filter by title, company, skill…"
+          style={{flex:1,background:"var(--surface)",border:"1px solid var(--border)",color:"var(--text)",
+            fontSize:11,padding:"9px 12px",outline:"none",fontFamily:"var(--body)"}}/>
+        {loading&&<Spin/>}
+      </div>
+      <div style={{display:"grid",gap:2}}>
+        {filtered.map(j=>(
+          <div key={j.id} style={{background:"var(--surface)",border:"1px solid var(--border)",padding:"14px 16px",display:"grid",gridTemplateColumns:"1fr auto",gap:10,transition:"border-color 0.2s"}}
+            onMouseEnter={e=>e.currentTarget.style.borderColor="var(--red)"}
+            onMouseLeave={e=>e.currentTarget.style.borderColor="var(--border)"}>
+            <div>
+              <div style={{fontFamily:"var(--display)",fontSize:18,marginBottom:3,color:"var(--text)"}}>{j.title}</div>
+              <div style={{fontSize:10,color:"var(--muted)",marginBottom:8,fontFamily:"var(--mono)"}}>{j.company} · {j.location} · {j.posted}</div>
+              <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+                {j.tags.map(t=><Tag key={t}>{t}</Tag>)}
+                {j.salary&&<Tag c="var(--amber)">{j.salary}</Tag>}
+              </div>
+            </div>
+            <div style={{display:"flex",flexDirection:"column",gap:4}}>
+              <a href={j.url} target="_blank" rel="noreferrer"
+                style={{fontSize:9,letterSpacing:"0.12em",padding:"6px 12px",background:"var(--red)",
+                  color:"#fff",textDecoration:"none",textTransform:"uppercase",textAlign:"center",fontFamily:"var(--mono)"}}>Apply →</a>
+              <button onClick={()=>setSaved(s=>s.includes(j.id)?s.filter(x=>x!==j.id):[...s,j.id])}
+                style={{fontSize:9,padding:"6px 12px",background:saved.includes(j.id)?"var(--amber)":"transparent",
+                  border:"1px solid var(--border)",color:saved.includes(j.id)?"var(--bg)":"var(--muted)",
+                  cursor:"pointer",textTransform:"uppercase",letterSpacing:"0.1em",fontFamily:"var(--mono)"}}>
+                {saved.includes(j.id)?"★ Saved":"☆ Save"}
+              </button>
+            </div>
+          </div>
+        ))}
+        {!filtered.length&&<div style={{padding:40,textAlign:"center",color:"var(--muted)",fontSize:11,fontFamily:"var(--body)"}}>No results for "{q}"</div>}
+      </div>
+      <div style={{marginTop:10,fontSize:9,color:"var(--muted)",textAlign:"right",fontFamily:"var(--mono)"}}>{filtered.length} listings · Remotive API</div>
+    </div>
+  );
+};
+
+// ── NEWS ─────────────────────────────────────────────────────────────────────
+const News=({news,loading})=>(
+  <div style={{animation:"slideIn 0.3s ease"}}>
+    <Head label="Market Intelligence" live/>
+    {loading&&<div style={{display:"flex",alignItems:"center",gap:8,fontSize:10,color:"var(--muted)",marginBottom:14,fontFamily:"var(--mono)"}}><Spin/> Fetching live feed…</div>}
+    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:2}}>
+      {news.map((n,i)=>(
+        <a key={i} href={n.url} target="_blank" rel="noreferrer"
+          style={{display:"block",background:"var(--surface)",border:"1px solid var(--border)",padding:18,textDecoration:"none",color:"var(--text)",transition:"border-color 0.2s"}}
+          onMouseEnter={e=>e.currentTarget.style.borderColor="var(--red)"}
+          onMouseLeave={e=>e.currentTarget.style.borderColor="var(--border)"}>
+          <div style={{fontSize:9,color:"var(--red)",letterSpacing:"0.15em",textTransform:"uppercase",marginBottom:8,fontFamily:"var(--mono)"}}>{n.source} · {n.date}</div>
+          <div style={{fontFamily:"var(--serif)",fontSize:14,lineHeight:"var(--lh)",marginBottom:8,color:"var(--text)"}}>{n.title}</div>
+          <div style={{fontSize:10,color:"var(--muted)",lineHeight:"var(--lh)",fontFamily:"var(--body)"}}>{n.desc}</div>
+          <div style={{fontSize:9,color:"var(--red)",marginTop:10,letterSpacing:"0.15em",fontFamily:"var(--mono)"}}>READ →</div>
+        </a>
+      ))}
+    </div>
+  </div>
+);
+
+// ── BOT ──────────────────────────────────────────────────────────────────────
+const BotPanel=({botKey})=>{
+  const cfg=BOT_CONFIG[botKey];
+  const [input,setInput]=useState("");
+  const [msgs,setMsgs]=useState([]);
+  const [loading,setLoading]=useState(false);
+  const bottomRef=useRef(null);
+  useEffect(()=>{bottomRef.current?.scrollIntoView({behavior:"smooth"});},[msgs]);
+  const send=async()=>{
+    if(!input.trim()||loading)return;
+    const text=input.trim(); setInput("");
+    setMsgs(m=>[...m,{role:"user",text}]);
+    setLoading(true);
+    setMsgs(m=>[...m,{role:"bot",text:""}]);
+    await callClaude(cfg.system,text,result=>{
+      setMsgs(m=>{const u=[...m];u[u.length-1]={role:"bot",text:result};return u;});
+    });
+    setLoading(false);
+  };
+  return(
+    <div style={{display:"flex",flexDirection:"column",background:"var(--surface)",border:`1px solid ${cfg.color}44`,minHeight:400}}>
+      <div style={{padding:"12px 16px",borderBottom:"1px solid var(--border)",display:"flex",alignItems:"center",gap:8,background:"var(--surface2)"}}>
+        <span style={{color:cfg.color,fontSize:14}}>{cfg.icon}</span>
+        <span style={{fontFamily:"var(--display)",fontSize:17,textTransform:"uppercase",letterSpacing:"0.05em",color:"var(--text)"}}>{cfg.label}</span>
+        <Dot c={cfg.color}/>
+      </div>
+      <div style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:10,maxHeight:320,minHeight:200}}>
+        {!msgs.length&&<div style={{fontSize:10,color:"var(--muted)",textAlign:"center",marginTop:24,lineHeight:"var(--lh)",fontFamily:"var(--body)"}}>{cfg.icon} {cfg.label} ready.<br/><span style={{fontSize:9,fontFamily:"var(--mono)"}}>Ask anything about your career.</span></div>}
+        {msgs.map((m,i)=>(
+          <div key={i} style={{alignSelf:m.role==="user"?"flex-end":"flex-start",maxWidth:"87%",
+            background:m.role==="user"?cfg.color:"var(--surface2)",
+            color:m.role==="user"?(botKey==="market"?"#fff":"var(--bg)"):"var(--text)",
+            padding:"9px 13px",fontSize:11,lineHeight:"var(--lh)",letterSpacing:"var(--ls)",
+            whiteSpace:"pre-wrap",animation:"slideIn 0.2s ease",fontFamily:"var(--body)"}}>
+            {m.text||(loading&&i===msgs.length-1?<span style={{animation:"blink 1s infinite"}}>█</span>:"")}
+          </div>
+        ))}
+        <div ref={bottomRef}/>
+      </div>
+      <div style={{borderTop:"1px solid var(--border)",display:"flex"}}>
+        <textarea rows={2} value={input} onChange={e=>setInput(e.target.value)}
+          onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();}}}
+          placeholder={cfg.placeholder}
+          style={{flex:1,background:"var(--surface2)",border:"none",color:"var(--text)",
+            fontSize:11,padding:"10px 12px",resize:"none",outline:"none",fontFamily:"var(--body)",lineHeight:"var(--lh)"}}/>
+        <button onClick={send} disabled={loading||!input.trim()}
+          style={{padding:"0 16px",background:loading?"var(--surface2)":cfg.color,border:"none",
+            color:botKey==="market"?"#fff":"var(--bg)",fontSize:11,letterSpacing:"0.12em",
+            cursor:loading?"not-allowed":"pointer",textTransform:"uppercase",minWidth:56,fontFamily:"var(--mono)"}}>
+          {loading?"…":"→"}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const Bots=()=>{
+  const [active,setActive]=useState("resume");
+  return(
+    <div style={{animation:"slideIn 0.3s ease"}}>
+      <Head label="AI Bots"/>
+      <div style={{display:"flex",gap:2,marginBottom:14}}>
+        {Object.entries(BOT_CONFIG).map(([k,cfg])=>(
+          <button key={k} onClick={()=>setActive(k)}
+            style={{flex:1,padding:"9px 4px",fontFamily:"var(--body)",fontSize:9,letterSpacing:"0.1em",
+              textTransform:"uppercase",cursor:"pointer",
+              background:active===k?cfg.color:"var(--surface)",
+              color:active===k?(k==="market"?"#fff":"var(--bg)"):"var(--muted)",
+              border:`1px solid ${active===k?cfg.color:"var(--border)"}`,transition:"all 0.2s"}}>
+            {cfg.icon} {cfg.label}
+          </button>
+        ))}
+      </div>
+      <BotPanel key={active} botKey={active}/>
+      <div style={{marginTop:8,fontSize:9,color:"var(--muted)",letterSpacing:"0.1em",fontFamily:"var(--mono)"}}>POWERED BY CLAUDE · SHIFT+ENTER FOR NEW LINE</div>
+    </div>
+  );
+};
+
+// ── TRACKER ──────────────────────────────────────────────────────────────────
+const Tracker=()=>{
+  const [apps,setApps]=useState([
+    {id:1,company:"Accenture ZA",role:"Power Platform Developer",status:"Interview",date:"2026-03-20",notes:"Round 2 scheduled"},
+    {id:2,company:"Discovery",role:"Data Analyst",status:"Applied",date:"2026-03-25",notes:""},
+    {id:3,company:"Rain",role:"Junior DevOps",status:"Ghosted",date:"2026-03-10",notes:"No response after 21 days"},
+  ]);
+  const [form,setForm]=useState({company:"",role:"",status:"Applied",date:"",notes:""});
+  const [adding,setAdding]=useState(false);
+  const f=k=>e=>setForm(p=>({...p,[k]:e.target.value}));
+  const add=()=>{
+    if(!form.company||!form.role)return;
+    setApps(a=>[...a,{...form,id:Date.now()}]);
+    setForm({company:"",role:"",status:"Applied",date:"",notes:""});
+    setAdding(false);
+  };
+  const counts=Object.keys(STATUS_COLORS).reduce((acc,s)=>{acc[s]=apps.filter(a=>a.status===s).length;return acc},{});
+  return(
+    <div style={{animation:"slideIn 0.3s ease"}}>
+      <Head label="Application Tracker"/>
+      <div style={{display:"flex",gap:2,marginBottom:16}}>
+        {Object.entries(counts).map(([s,n])=>(
+          <div key={s} style={{flex:1,background:"var(--surface)",border:"1px solid var(--border)",padding:"10px 6px",textAlign:"center",borderTop:`3px solid ${STATUS_COLORS[s]}`}}>
+            <div style={{fontFamily:"var(--display)",fontSize:30,color:STATUS_COLORS[s]}}>{n}</div>
+            <div style={{fontSize:8,color:"var(--muted)",letterSpacing:"0.1em",textTransform:"uppercase",fontFamily:"var(--mono)"}}>{s}</div>
+          </div>
+        ))}
+      </div>
+      <button onClick={()=>setAdding(a=>!a)}
+        style={{marginBottom:12,fontFamily:"var(--body)",fontSize:9,letterSpacing:"0.12em",textTransform:"uppercase",
+          padding:"8px 18px",background:adding?"var(--surface)":"var(--red)",color:"#fff",
+          border:`1px solid ${adding?"var(--border)":"var(--red)"}`,cursor:"pointer"}}>
+        {adding?"✕ Cancel":"+ Log Application"}
+      </button>
+      {adding&&(
+        <div style={{background:"var(--surface)",border:"1px solid var(--red)",padding:14,marginBottom:14,
+          display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,animation:"slideIn 0.2s ease"}}>
+          {["company","role","date","notes"].map(field=>(
+            <input key={field} value={form[field]} onChange={f(field)}
+              placeholder={field.charAt(0).toUpperCase()+field.slice(1)}
+              style={{background:"var(--surface2)",border:"1px solid var(--border)",color:"var(--text)",
+                fontSize:10,padding:"7px 10px",outline:"none",fontFamily:"var(--body)"}}/>
+          ))}
+          <select value={form.status} onChange={f("status")}
+            style={{background:"var(--surface2)",border:"1px solid var(--border)",color:"var(--text)",fontSize:10,padding:"7px 10px",fontFamily:"var(--body)"}}>
+            {Object.keys(STATUS_COLORS).map(s=><option key={s}>{s}</option>)}
+          </select>
+          <button onClick={add}
+            style={{background:"var(--green)",border:"none",color:"var(--bg)",fontFamily:"var(--body)",
+              fontSize:9,letterSpacing:"0.12em",textTransform:"uppercase",padding:8,cursor:"pointer"}}>Save →</button>
+        </div>
+      )}
+      <div style={{display:"grid",gap:2}}>
+        {apps.map(a=>(
+          <div key={a.id} style={{background:"var(--surface)",border:"1px solid var(--border)",borderLeft:`3px solid ${STATUS_COLORS[a.status]}`,padding:"12px 16px",display:"flex",alignItems:"center",gap:10}}>
+            <div style={{flex:1}}>
+              <div style={{fontFamily:"var(--display)",fontSize:17,color:"var(--text)"}}>{a.role}</div>
+              <div style={{fontSize:9,color:"var(--muted)",fontFamily:"var(--mono)"}}>{a.company} · {a.date}</div>
+              {a.notes&&<div style={{fontSize:9,color:"var(--muted)",marginTop:3,fontStyle:"italic",fontFamily:"var(--body)"}}>{a.notes}</div>}
+            </div>
+            <Tag c={STATUS_COLORS[a.status]}>{a.status}</Tag>
+            <button onClick={()=>setApps(l=>l.filter(x=>x.id!==a.id))}
+              style={{background:"transparent",border:"none",color:"var(--muted)",cursor:"pointer",fontSize:13}}>✕</button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// ── APP ──────────────────────────────────────────────────────────────────────
+function App(){
+  const getSaved=()=>{try{return localStorage.getItem("lo-theme")||"dark";}catch{return"dark";}};
+  const [themeId,setThemeId]=useState(getSaved);
+  const [view,setView]=useState("dashboard");
+  const [jobs,setJobs]=useState([]);
+  const [news,setNews]=useState([]);
+  const [jobsLoading,setJobsLoading]=useState(true);
+  const [newsLoading,setNewsLoading]=useState(true);
+  const [open,setOpen]=useState(true);
+
+  useEffect(()=>{
+    applyTheme(THEMES[themeId]);
+    try{localStorage.setItem("lo-theme",themeId);}catch{}
+  },[themeId]);
+
+  useEffect(()=>{
+    fetchJobs().then(d=>{setJobs(d);setJobsLoading(false);});
+    fetchNews().then(d=>{setNews(d);setNewsLoading(false);});
+  },[]);
+
+  return(
+    <div style={{display:"flex",flexDirection:"column",height:"100vh",overflow:"hidden",background:"var(--bg)",color:"var(--text)",fontFamily:"var(--body)"}}>
+      <Ticker/>
+      <div style={{display:"flex",flex:1,overflow:"hidden"}}>
+        {/* Sidebar */}
+        <div style={{width:open?190:44,background:"var(--surface)",borderRight:"1px solid var(--border)",transition:"width 0.22s ease",overflow:"hidden",flexShrink:0,display:"flex",flexDirection:"column"}}>
+          <div style={{padding:"14px 12px",borderBottom:"1px solid var(--border)",cursor:"pointer",flexShrink:0}} onClick={()=>setOpen(o=>!o)}>
+            <span style={{fontFamily:"var(--display)",fontSize:18,letterSpacing:"0.04em",whiteSpace:"nowrap",color:"var(--text)"}}>
+              {open?<>LINKED<span style={{color:"var(--red)"}}>OUT</span></>:<span style={{color:"var(--red)"}}>LO</span>}
+            </span>
+          </div>
+          <nav style={{flex:1,paddingTop:6}}>
+            {NAV.map(item=>(
+              <button key={item.id} onClick={()=>setView(item.id)}
+                style={{width:"100%",display:"flex",alignItems:"center",gap:10,padding:"9px 12px",
+                  background:view===item.id?"var(--surface2)":"transparent",border:"none",
+                  borderLeft:view===item.id?"3px solid var(--red)":"3px solid transparent",
+                  color:view===item.id?"var(--text)":"var(--muted)",fontFamily:"var(--body)",
+                  fontSize:9,letterSpacing:"0.12em",textTransform:"uppercase",cursor:"pointer",
+                  textAlign:"left",transition:"all 0.15s",whiteSpace:"nowrap"}}>
+                <span style={{fontSize:13,flexShrink:0}}>{item.icon}</span>
+                {open&&<span>{item.label}</span>}
+                {open&&item.id==="jobs"&&!jobsLoading&&<span style={{marginLeft:"auto",fontSize:7,color:"var(--green)"}}>●</span>}
+              </button>
+            ))}
+          </nav>
+          {open&&(
+            <div style={{padding:"10px 12px",borderTop:"1px solid var(--border)",fontSize:8,color:"var(--muted)",lineHeight:1.9,letterSpacing:"0.1em",flexShrink:0,fontFamily:"var(--mono)"}}>
+              T⁴TECH SOLUTIONS<br/>
+              <a href="https://x.com/GeeRadebe" target="_blank" rel="noreferrer" style={{color:"var(--red)",textDecoration:"none"}}>@GeeRadebe</a><br/>
+              JHB · 2026
+            </div>
+          )}
+        </div>
+        {/* Main */}
+        <div style={{flex:1,overflowY:"auto",padding:"24px 24px"}}>
+          {view==="dashboard"&&<Dashboard jobs={jobs} news={news}/>}
+          {view==="jobs"&&<Jobs jobs={jobs} loading={jobsLoading}/>}
+          {view==="news"&&<News news={news} loading={newsLoading}/>}
+          {view==="bots"&&<Bots/>}
+          {view==="tracker"&&<Tracker/>}
+        </div>
+      </div>
+      <ThemeToggle current={themeId} onChange={setThemeId}/>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
